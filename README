@@ -1,0 +1,121 @@
+I. BUILDING
+-------------------------
+
+1. Requirements:
+   
+   libfcgi   - http://www.nongnu.org/fastcgi/
+   libcgroup - http://libcg.sourceforge.net/
+
+
+2. Preconfigure if using git clone (with autoconf & automake)
+
+   # autoreconf -fiv
+
+
+3. Configure and make
+   
+   # ./configure --enable-debug
+   # make
+
+
+
+II. RUNNING
+-------------------------
+
+1. For lighttpd use
+
+    fastcgi.server = (
+    "/fcgi/" =>
+          ((
+          "host" => "127.0.0.1",
+          "port" => "9000",
+          "check-local" => "disable",
+          ))
+    )
+
+
+2. Run ./fcgi from the directory where is was built
+
+    # ./fcgi 
+    2014-01-18 17:06:28 +0400 main.c:193 (init_libraries): initializing libfcgi
+    2014-01-18 17:06:28 +0400 main.c:200 (init_libraries): initializing libcgroup
+    ./fcgi: socket `:9000', backlog 16, 5 workers, URI prefix `/fcgi'
+    2014-01-18 17:06:28 +0400 main.c:230 (main): allocating space for 5 threads
+    2014-01-18 17:06:28 +0400 main.c:239 (main): starting threads
+    2014-01-18 17:06:28 +0400 main.c:245 (main): starting thread #0
+    2014-01-18 17:06:28 +0400 main.c:245 (main): starting thread #1
+    2014-01-18 17:06:28 +0400 main.c:63 (worker): thread #0 started
+    2014-01-18 17:06:28 +0400 main.c:245 (main): starting thread #2
+    2014-01-18 17:06:28 +0400 main.c:63 (worker): thread #1 started
+    2014-01-18 17:06:28 +0400 main.c:245 (main): starting thread #3
+    2014-01-18 17:06:28 +0400 main.c:63 (worker): thread #2 started
+    2014-01-18 17:06:28 +0400 main.c:245 (main): starting thread #4
+    2014-01-18 17:06:28 +0400 main.c:63 (worker): thread #3 started
+    2014-01-18 17:06:28 +0400 main.c:63 (worker): thread #4 started
+
+
+
+III. API
+-------------------------
+
+0. Setup used in examples:
+
+# lscgroup 
+cpu:/
+cpu:/hello
+cpu:/hello/world
+blkio:/
+blkio:/hello
+blkio:/hello/man
+cpuacct,devices,freezer:/
+net_cls,perf_event:/
+
+
+1. List all groups hierarhies
+
+# curl 'http://localhost/fcgi/cgroups/'
+[
+ {controllers: ["cpu"], groups: ["/", "/hello", "/hello/world"]},
+ {controllers: ["blkio"], groups: ["/", "/hello", "/hello/man"]},
+ {controllers: ["cpuacct", "devices", "freezer"], groups: ["/"]},
+ {controllers: ["net_cls", "perf_event"], groups: ["/"]}
+]
+
+
+2. List particular hierarhies
+
+# curl 'http://localhost/fcgi/cgroups/cpu:/'
+[{controllers: ["cpu"], groups: ["/", "/hello", "/hello/world"]}]
+
+# curl 'http://localhost/fcgi/cgroups/cpu,blkio:/'
+[{controllers: ["cpu"], groups: ["/", "/hello", "/hello/world"]},
+ {controllers: ["blkio"], groups: ["/", "/hello", "/hello/man"]}]
+
+# curl 'http://localhost/fcgi/cgroups/cpu,blkio:/hello'
+[{controllers: ["cpu"], groups: ["/hello/", "/hello/world"]},
+ {controllers: ["blkio"], groups: ["/hello/", "/hello/man"]}]
+
+# curl 'http://localhost/fcgi/cgroups/cpu,devices:/hello'
+[{controllers: ["cpu"], groups: ["/hello/", "/hello/world"]}]
+
+
+3. Listing tasks
+
+# curl  'http://localhost/fcgi/cgroups/blkio:/hello?list-tasks'
+[24086]
+
+# curl  'http://localhost/fcgi/cgroups/cpu:/hello?list-tasks'
+[1, 24086, 24099]
+
+# curl  'http://localhost/fcgi/cgroups/cpu,blkio:/hello?list-tasks'
+[24086]
+
+
+4. Attaching (moving) a task to a group
+
+# curl  'http://localhost/fcgi/cgroups/blkio:/hello?attach-task=24099'
+{}
+
+# curl  'http://localhost/fcgi/cgroups/cpu,blkio:/hello?list-tasks'
+[24086, 24099]
+

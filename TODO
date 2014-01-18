@@ -1,0 +1,7 @@
+1. Make output abstraction to allow different formats (JSON, XML, plain text)
+
+   E. g. replace FCGX_FPrintF (request->out, ...);
+   with report_error(request->out, ...);
+
+2. Add support for Solaris projects
+
