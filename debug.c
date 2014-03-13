@@ -24,12 +24,11 @@ THE SOFTWARE.
 #include "config.h"
 #endif
 
-#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
-
-static pthread_mutex_t debug_mutex = PTHREAD_MUTEX_INITIALIZER;
+#include <unistd.h>
 
 void
 __debug (const char *file, int line, const char *func, const char *msg, ...)
@@ -37,20 +36,30 @@ __debug (const char *file, int line, const char *func, const char *msg, ...)
   va_list ap;
   time_t ltime;
   char time_str[32];
+  char buf[512];
+  int bytes = 0;
 
   ltime = time (NULL);
   strftime (time_str, sizeof (time_str), "%Y-%m-%d %T %z",
             localtime (&ltime));
 
-  va_start (ap, msg);
 
-  pthread_mutex_lock (&debug_mutex);
+  bytes =
+    snprintf (buf, sizeof (buf), "%s %s:%d (%s): ", time_str, file, line,
+              func);
 
-  fprintf (stderr, "%s %s:%d (%s): ", time_str, file, line, func);
-  vfprintf (stderr, msg, ap);
-  fprintf (stderr, "\n");
+  if (bytes < sizeof (buf))
+    {
+      va_start (ap, msg);
+      bytes += vsnprintf (buf + bytes, sizeof (buf) - bytes, msg, ap);
+      va_end (ap);
+    }
 
-  pthread_mutex_unlock (&debug_mutex);
+  if (bytes < sizeof (buf))
+    bytes += snprintf (buf + bytes, sizeof (buf) - bytes, "\n");
+  else
+    strcpy (buf + sizeof (buf) - 5, "...\n");
 
-  va_end (ap);
+  (void) write (2, buf, strlen (buf));
+
 }
